@@ -1,10 +1,10 @@
-package utility;
+package gui;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
-import gui.UserInterface;
 import main.Main;
+import utility.PasswordAuthentication;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;

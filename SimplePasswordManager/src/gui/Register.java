@@ -4,7 +4,6 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
 import main.Main;
-import utility.Authentication;
 import utility.PasswordAuthentication;
 import utility.PasswordGenerator;
 

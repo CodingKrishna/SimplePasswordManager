@@ -1,8 +1,8 @@
 package main;
 import java.io.File;
 
+import gui.Authentication;
 import gui.Register;
-import utility.Authentication;
 
 public class Main {  
 	public static final String FILEPATH = "password.txt";
