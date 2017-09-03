@@ -15,6 +15,10 @@ import javax.swing.JComboBox;
 import javax.swing.JTextField;
 import javax.swing.DefaultComboBoxModel;
 import java.awt.Color;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -25,6 +29,9 @@ import java.util.concurrent.TimeUnit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 
 public class UserInterface extends JFrame {
 
@@ -50,6 +57,7 @@ public class UserInterface extends JFrame {
 	private JComboBox typeBox;
 	private JButton btnClear;
 	private JButton btnSave;
+	private JButton btnCopy;
 	
 	/**
 	 * Create the frame.
@@ -95,19 +103,19 @@ public class UserInterface extends JFrame {
         dataTable.setAutoCreateRowSorter(true);
 		scrollPane.setViewportView(dataTable);
 		
-		lblSearch = new JLabel("Search:");
+		lblSearch = new JLabel("Search/copy:");
 		lblSearch.setBounds(10, 514, 106, 14);
 		contentPane.add(lblSearch);
 		
 		typeBox = new JComboBox();
 		typeBox.setModel(new DefaultComboBoxModel(columns));
-		typeBox.setBounds(10, 530, 133, 20);
+		typeBox.setBounds(10, 530, 87, 20);
 		
 		contentPane.add(typeBox);
 		
 		lblSearchResult = new JLabel("no results found..");
 		lblSearchResult.setForeground(Color.LIGHT_GRAY);
-		lblSearchResult.setBounds(153, 514, 621, 14);
+		lblSearchResult.setBounds(177, 514, 621, 14);
 		contentPane.add(lblSearchResult);
 		
 		searchField = new JTextField();
@@ -120,7 +128,7 @@ public class UserInterface extends JFrame {
 				search(search, type);
 			}
 		});
-		searchField.setBounds(153, 530, 621, 20);
+		searchField.setBounds(177, 530, 597, 20);
 		contentPane.add(searchField);
 		searchField.setColumns(10);
 		
@@ -159,11 +167,11 @@ public class UserInterface extends JFrame {
 			public void actionPerformed(ActionEvent arg0) {
 				save();
 				btnSave.setBackground(Color.GREEN);
-			    service.schedule(new Runnable(){
-		            public void run(){
-		            	btnSave.setBackground(new Color(255, 127, 80));
-		            }
-		        }, 1, TimeUnit.SECONDS);
+				service.schedule(new Runnable(){
+	            public void run(){
+	            	btnSave.setBackground(new Color(255, 127, 80));
+	            }
+				}, 1, TimeUnit.SECONDS);
 			}
 		});
 		btnSave.setBounds(678, 484, 96, 23);
@@ -195,6 +203,39 @@ public class UserInterface extends JFrame {
 		});
 		btnShow.setBounds(511, 484, 157, 23);
 		contentPane.add(btnShow);
+		
+		btnCopy = new JButton("Copy");
+		btnCopy.addActionListener(new ActionListener() {
+		   public void actionPerformed(ActionEvent arg0) {
+		      String type = (String) typeBox.getSelectedItem();
+		      int type_index = -1;
+		      int nCol = model.getColumnCount();
+		      
+		      for (int j = 0; j < nCol; j++ ) // get the index to copy on
+		         type_index = (type.equals(columns[j])) ? j : type_index; 
+		      
+		      int selected_row_index = 0;  // if it is not selected default to top
+		      if( dataTable.isRowSelected(0) ){
+		         selected_row_index = dataTable.getSelectedRow();
+		      }
+		      
+		      // save to clipboard
+		      StringSelection stringSelection = new StringSelection((String) model.getValueAt(selected_row_index, type_index));
+		      Clipboard clpbrd = Toolkit.getDefaultToolkit ().getSystemClipboard ();
+		      clpbrd.setContents (stringSelection, null);
+		      
+		      // color change to notify the user that it worked
+		      Color prev = btnCopy.getBackground();
+		      btnCopy.setBackground(Color.GREEN);
+		      service.schedule(new Runnable(){
+               public void run(){
+                  btnCopy.setBackground(prev);
+               }
+            }, 400, TimeUnit.MILLISECONDS);
+		   }
+		});
+		btnCopy.setBounds(98, 530, 69, 20);
+		contentPane.add(btnCopy);
 	}
 	
 	private void loadInitialData(){
@@ -218,7 +259,14 @@ public class UserInterface extends JFrame {
 	    for (int i = 0; i < nRow; i++){
 	        for (int j = 0; j < nCol; j++){
 	        	if( j==3 ){ // is a password	
-	        		tableData[i][j] = Encryption.encrypt(Encryption.KEY, INITVECTOR, getStringRepresentation(passwords.get(i)));
+	        		try {
+	        		   String str = getStringRepresentation(passwords.get(i));
+                  tableData[i][j] = Encryption.encrypt(Encryption.getKey(str.toCharArray()), INITVECTOR, str);
+               } catch (NoSuchAlgorithmException | IOException e) {
+                  e.printStackTrace();
+               } catch (InvalidKeySpecException e) {
+                  e.printStackTrace();
+               }
 	        	}else{
 	        		tableData[i][j] = model.getValueAt(i,j);;
 	        	}
@@ -226,7 +274,7 @@ public class UserInterface extends JFrame {
 	    }
 	    sh.saveJSONData(tableData);
 	}
-	
+	 
 	private Object[][] load(){
 		Object[][] data = sh.getJSONData();
 		
@@ -238,7 +286,14 @@ public class UserInterface extends JFrame {
 		for (int i = 0; i < nR ; i++){
 	        for (int j = 0; j < data[0].length; j++){
 	        	if( j==3 ){ // is a password
-	        		data[i][j] = Encryption.decrypt(Encryption.KEY, INITVECTOR, (String) data[i][j]);
+	        		try {
+	        		   String str = (String) data[i][j];
+                  data[i][j] = Encryption.decrypt(Encryption.getKey(str.toCharArray()), INITVECTOR, str);
+               } catch (NoSuchAlgorithmException | IOException e) {
+                  e.printStackTrace();
+               } catch (InvalidKeySpecException e) {
+                  e.printStackTrace();
+               }
 	        	}
 	        }
 	    }
@@ -279,6 +334,7 @@ public class UserInterface extends JFrame {
 		int spos = dataTable.getSelectedRow();
 		int pos = (spos==-1) ? 0 : spos;
 		model.moveRow(row_to_move, row_to_move, pos);
+		dataTable.setRowSelectionInterval(0, 0); // selects first row
 	}
 	
 	public String getStringRepresentation(ArrayList<Character> list){    
